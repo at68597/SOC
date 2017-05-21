@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "udpclient.h"
+#include "ZedboardOLED.h"
 
 #define AXI_REG_0   ((unsigned *)(ptr0 + 0))
 
@@ -26,6 +27,9 @@ int main(int argc, char *argv[]) {
         // open dev/uio0
         int fd = open ("/dev/uio0", O_RDWR);
         if (fd < 1) { perror(argv[0]); return -1; }
+        //OLED dev/uio5
+        int fd5 = open ("/dev/uio5", O_RDWR);
+        if (fd5 < 1) { perror(argv[0]); return -1; }
    
         //Redirect stdout/printf into /dev/kmsg file (so it will be printed using printk)
         freopen ("/dev/kmsg","w",stdout);
@@ -36,6 +40,15 @@ int main(int argc, char *argv[]) {
         //Map virtual memory to physical memory
         void *ptr0;
         ptr0 = mmap(NULL, pageSize, (PROT_READ |PROT_WRITE), MAP_SHARED, fd, 0);
+        void *ptr5;
+        ptr5 = mmap(NULL, pageSize, (PROT_READ |PROT_WRITE), MAP_SHARED, fd5, 0);
+        
+        //Writing into OLED
+		oled_clear(ptr5);
+		if (!oled_print_message("SoC Audio Mixer Project",0, ptr5)){
+			perror("Error:Not able to write\n");
+			exit(-1);
+		}
           
 		//seting up udp client
         if (udp_client_setup ("10.255.255.255", 7891) == 1){
@@ -69,6 +82,7 @@ int main(int argc, char *argv[]) {
 		pthread_join(audioRecieveThread, NULL);
 		//unmapping
         munmap(ptr0, pageSize);
+        munmap(ptr5, pageSize);
         
         fclose(stdout);
         // Unlinking temp FIFO
